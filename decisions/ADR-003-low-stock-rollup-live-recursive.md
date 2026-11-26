@@ -45,7 +45,7 @@ I built the rollup as **plain (live) views** using a **recursive query** that pa
 - **What it costs the client if I am wrong:** if 5 units is too high, 42% of products show as low and the list stops being useful; if too low, real shortages are missed. Either way it is one number to change.
 - **What would make me revisit this:** a catalogue of tens of thousands of categories (consider stored paths), reorder levels becoming available (use them), the low-stock list being ignored because it is too long.
 
-**Assumptions:** low stock = 5 units or fewer (a typical product sells about 24 a month, so roughly a week of cover); out of stock counts as low; each product belongs to one category (the schema allows only one).
+**Assumptions:** low stock = 5 units or fewer (in the latest month, August 2026, a typical product sold about 22 to 23 units, so 5 units is roughly a week of cover); out of stock counts as low; each product belongs to one category (the schema allows only one).
 
 ## What this survives
 

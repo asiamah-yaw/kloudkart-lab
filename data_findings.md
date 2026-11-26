@@ -2,9 +2,9 @@
 
 ## Summary
 
-I checked the Kloud Kart extract against every rule the current schema does not enforce (no foreign keys, no unique email, no value checks, free-text status). Of 31 checks, **18 found problems** and 13 came back clean. The problems are ranked below by what they do to the numbers Nana and Adwoa actually use, not by how many rows they touch.
+I checked the Kloud Kart extract against every rule the current schema does not enforce (no foreign keys, no unique email, no value checks, free-text status). Of 31 checks, **20 returned rows** and 11 came back clean. One of the 20 (C8, movements of zero) turned out to be normal (see "Looked wrong, is not wrong"); the other 19 point to the ten findings below. The problems are ranked below by what they do to the numbers Nana and Adwoa actually use, not by how many rows they touch.
 
-The most dangerous fault is the cheapest to fix: **order status is stored in 15 different spellings**. Any report that filters on one spelling silently drops **72% of customer spend** (89,260 completed orders worth 273.1 million). The second is that **stock figures cannot be trusted**: 14 products are below zero (27 units sold that did not exist, the overselling Nana described) and 144 products hold a stock figure their own movement history does not explain (2,553 units, 3.87 million at current prices).
+The most dangerous fault is the cheapest to fix: **order status is stored in 15 different spellings**. Any report that filters on one spelling silently drops **72% of customer spend** (89,260 completed orders worth 273.1 million). The second is that **stock figures cannot be trusted**: 14 products are below zero (27 units sold that did not exist; for 13 of them the movement history also goes below zero, which is consistent with the overselling Nana described) and 144 products hold a stock figure their own movement history does not explain (2,553 units, up to 3.87 million at current selling prices).
 
 I fixed nothing by rewriting history. Where data is wrong I either work around it in the new reports (and say so), or add a rule that stops new bad rows while leaving the old ones visible for review. Everything here is reproduced on a fresh load by `sql/01_integrity_checks.sql` (counts) and `sql/01b_cost_of_findings.sql` (business cost).
 
@@ -48,8 +48,8 @@ Severity scale: **High** = changes a number Nana decides on, by a lot, today. **
 - **What it is:** `products.stock_quantity` has no rule stopping it going below zero, and nothing ties it to `inventory_log`. The stock figure and the movement history are written separately, so they can drift apart.
 - **How I detected it:** C1 (`stock_quantity < 0`) and D2 (stock figure compared with the sum of `change_qty` per product).
 - **Scale:** 14 products below zero; 144 products whose figure differs from their history (122 show less than the history says, 22 show more).
-- **Effect on the client's number:** the negative stock is **27 units sold that did not exist (20,628 at current prices)**, the overselling Nana described, each one a refund and an apology. The drift is **2,553 units (3.87 million at current prices) that the records cannot explain**, about 1% of stock on hand. Low-stock alerts and the flash-sale stock limit are only as good as this figure.
-- **What I did about it:** new orders can no longer push stock below zero: `place_order` refuses, and a `CHECK (stock_quantity >= 0)` rule is added as a safety net, checking new changes only, so the 14 existing rows stay visible. Every stock change now writes its own movement row. A reconciliation view lists products where the two figures disagree.
+- **Effect on the client's number:** the negative stock is **27 units sold that did not exist (20,628 at current prices)**. For 13 of the 14 products the movement history also goes below zero, which is consistent with the overselling Nana described (each one a refund and an apology); missing restock records would look the same, so it is not proof on its own. The drift is **2,553 units (up to 3.87 million at current selling prices; the data has no cost price) that the records cannot explain**, about 1% of stock on hand. Low-stock alerts and the flash-sale stock limit are only as good as this figure.
+- **What I did about it:** new orders can no longer push stock below zero: `place_order` refuses, and a `CHECK (stock_quantity >= 0)` rule is added as a safety net, checking new changes only, so the 14 existing rows stay visible. Every stock change now writes its own movement row. The stock health view (`sql/09_stock_health.sql`, see improvement.md) lists products where the two figures disagree, most valuable first.
 - **Residual risk:** I cannot tell which figure is right for the 144 products. That needs a physical stock count. Until then, low-stock alerts for those products may be wrong.
 
 ### F-03: Order total disagrees with its own lines — Severity: Medium
@@ -75,7 +75,7 @@ Severity scale: **High** = changes a number Nana decides on, by a lot, today. **
 - **What it is:** `customers.email` was never unique.
 - **How I detected it:** B1/B2/B3, grouping on `lower(trim(email))`.
 - **Scale:** 533 email addresses are shared by 1,068 customer rows; 234 of these only match once capitals and spaces are ignored.
-- **Effect on the client's number:** the customer count is **overstated by 535** (40,420 rows, 39,885 distinct emails). A person split across two rows has their spend split too: in the current top-100, **1 real customer is missing** because their spend is divided between two accounts.
+- **Effect on the client's number:** the customer count is **overstated by up to 535** (40,420 rows, 39,885 distinct emails), if each shared email is one person. A person split across two rows has their spend split too: if the shared-email accounts are combined, **1 more person would enter the top 100**.
 - **What I did about it:** nothing automatic. I did not merge rows, because two real people can share an email (a family or a shop). The report ranks by customer account, as the data defines it.
 - **Residual risk:** the ranking may undercount people with split accounts. A merge needs a human review of the 533 groups first; after that, a unique rule on the normalised email can be added.
 
@@ -85,7 +85,7 @@ Severity scale: **High** = changes a number Nana decides on, by a lot, today. **
 - **How I detected it:** D3/D6, plus orders per month (about 1,000 a day until 31 Aug 2026, then 24 scattered over the next year).
 - **Scale:** 24 orders (68,040) dated 6 Sep 2026 to 20 Aug 2027, and 40 stock movements.
 - **Effect on the client's number:** "monthly spend for the trailing 12 months" depends on where the 12 months end. A report ending at "the latest order" would end in August 2027 and show almost a year of empty months.
-- **What I did about it:** the report's 12-month window ends at a stated date (31 Aug 2026 for this extract; today's date in normal use), and orders after it are left out.
+- **What I did about it:** the report's 12-month window ends at a stated date (31 Aug 2026 for this extract; in normal use, the end of the last complete month, so the newest month is never partial), and orders after it are left out.
 - **Residual risk:** if some of these are genuine orders with a wrong clock, their value is missing from the window.
 
 ### F-07: Category tree has a loop and a missing parent — Severity: Medium
@@ -131,9 +131,17 @@ Severity scale: **High** = changes a number Nana decides on, by a lot, today. **
 | Negative `change_qty` in inventory_log (262,646 rows) | Quantities are usually positive | It is how stock going out is recorded: every `sale` and `damage` row is negative, every `restock` and `return` row positive. The schema comment says so |
 | 90 movements with `change_qty = 0` | A movement of nothing | All are `stock_take`: staff counted the shelf and it matched the records, so nothing changed. A mismatch is logged as `correction` instead |
 | `correction` rows in both directions | Mixed signs | A correction can find more or less stock than recorded |
-| 4,116 order lines priced differently from the product's current price | Looks like a pricing error | Prices change over time; the line keeps the price paid on the day |
+| 3,964 order lines priced differently from the product's current price (not counting the 152 zero-price lines, which are a real fault, F-03) | Looks like a pricing error | Prices change over time; the line keeps the price paid on the day |
 | Customers who never ordered | Data for inactive people | Registered and not yet bought; normal for a shop |
 | All customers registered and products created before the first order | Suspicious timing | The extract covers orders from Aug 2025 onwards; customers and products are older. No order is dated before its customer registered (check D5 = 0) |
+
+## Checked and clean
+
+These looked like likely problems and were checked, but the data is fine:
+
+- **Double-submitted orders** (same customer, same total, within a minute of each other): 0 found.
+- **Shared phone numbers**: only 2 numbers shared, by 4 customer rows. Too few to matter; not pursued.
+- **Orders before the customer registered** (D5), **orders or customers with missing key fields** (A6, B4, C2, C4, C7, D4), **products in categories that do not exist** (A1), **order lines for products that do not exist** (A8), **orders with no lines** (A10), **products with a missing, zero or negative price** (C3): all 0.
 
 ## Could not verify
 

@@ -9,7 +9,7 @@
 -- NOT part of run_all.sql (on all 40,420 customers it takes far too long).
 -- It runs on the first :sample customers; the full time is estimated as
 --   (time for sample) x (40,420 / sample).
--- Run:  docker exec -w /lab -i kloudkart psql -U postgres -d lab -v sample=200 -f benchmarks/monday_report_before.sql
+-- Run:  docker exec -w /lab -i kloudkart psql -U postgres -d lab -v sample=50 -f benchmarks/monday_report_before.sql
 -- =====================================================================
 \timing on
 \set as_of '2026-08-31 23:59:59'

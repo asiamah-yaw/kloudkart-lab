@@ -7,7 +7,7 @@
 ## What I found
 
 - **Order status is written 15 ways for 5 real statuses.** A report looking only for "completed" misses 273 million of 381 million in sales (completed plus shipped): 72%. I didn't see whether Adwoa's report does this; mine read every spelling.
-- **157 products' stock figures don't match their record of stock in and out**: gaps worth up to 3.87 million at selling price, 88% of it in 20 products, and 14 below zero.
+- **144 products' stock figures don't match their record of stock in and out**: gaps worth up to 3.87 million at selling price, 88% of it in 20 products. 14 show stock below zero.
 - **2,426 order totals don't match their items.** The totals come to 3.48 million less than their items, mostly by exactly 10% or 25%. I used the totals, *assuming* they are what customers paid.
 - **Smaller:** 155 sales orders (0.1% of sales value) have no matching customer; up to 535 accounts may be duplicates, which could change the top 100.
 

@@ -38,7 +38,7 @@ The views:
 | 4. Under 7 days of cover | 928 | Will run out within a week at the recent rate |
 | Fine | 2,373 | |
 
-**How the 157 untrustworthy figures add up.** 144 products disagree with their history, and 14 are below zero. One product is in both groups (product 6295: the figure says −1, the history says 3). So 144 + 14 − 1 = **157 different products**. The **3,865,699.34** unexplained covers all 157. It's the gap in units times the selling price, with each gap counted by its size, so a surplus and a shortfall don't cancel each other out.
+**How the 157 untrustworthy figures add up.** 144 products disagree with their history, and 14 are below zero. One product is in both groups (product 6295: the figure says −1, the history says 3). So 144 + 14 − 1 = **157 different products**. The **3,865,699.34** unexplained comes from the 144 mismatched products (the other 13 below-zero products match their history, so they add nothing). It's the gap in units times the selling price, with each gap counted by its size, so a surplus and a shortfall don't cancel each other out.
 
 **Where to start.** The 20 products in `stock_count_first` hold **88.3%** of that 3.87 million. A physical count of 20 products settles most of the money, even though the full alert list is long.
 
@@ -65,4 +65,4 @@ The yes/no columns also show overlap that a single label hides. For example, 44 
 - **It doesn't say which figure is right,** the stock figure or the history. Only a physical count can. It doesn't change any stock automatically.
 - **28 days is a simple average.** It doesn't know about seasons, promotions or a flash sale coming up. A product that hasn't sold in 28 days has no days-of-cover figure (it shows as empty), even if it sells well at other times.
 - **The stock history protection has limits.** Edits (UPDATE) and emptying the table (TRUNCATE) are blocked (`sql/08_protect_audit_log.sql`). Deleting rows is still possible for the table owner, because the supplied test deletes its own test rows when it cleans up. In production, the shop application's login should be allowed only to add and read log rows, not to delete them. That permission is part of setting it up.
-- **The built-in check** proves every product is assessed exactly once and that each label agrees with its yes/no columns. That the labels match real situations is tested separately (see `verification.md`).
+- **The built-in check** proves every product is assessed exactly once and that each label agrees with its yes/no columns. That the labels match real situations is tested separately (test T13 in `tests/verification_tests.sql`, results in `verification.md`).
