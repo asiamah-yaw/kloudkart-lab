@@ -15,3 +15,6 @@
 \ir 06_category_rollup.sql
 \echo '##### Phase 6: indexes and statistics #####'
 \ir 07_indexes_and_stats.sql
+\echo '##### Phase 7: audit log protection and stock health (improvement) #####'
+\ir 08_protect_audit_log.sql
+\ir 09_stock_health.sql
