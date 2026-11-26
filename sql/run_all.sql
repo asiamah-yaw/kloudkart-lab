@@ -11,3 +11,5 @@
 \ir 04_place_order.sql
 \echo '##### Phase 4: Monday report #####'
 \ir 05_monday_report.sql
+\echo '##### Phase 5: low-stock category rollup #####'
+\ir 06_category_rollup.sql
