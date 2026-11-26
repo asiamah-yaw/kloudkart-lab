@@ -2,3 +2,4 @@
 -- Run AFTER schema.sql and load.sql. Each file is added here as it is built.
 \set ON_ERROR_STOP on
 \timing on
+\ir 01_integrity_checks.sql
