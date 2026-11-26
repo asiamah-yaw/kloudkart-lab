@@ -115,6 +115,15 @@ Severity scale: **High** = changes a number Nana decides on, by a lot, today. **
 - **What I did about it:** reports use order totals, not lines. New orders from `place_order` write one line per product.
 - **Residual risk:** product sales analysis from lines must remove duplicates first.
 
+### F-10: City and name written in many ways — Severity: Low
+
+- **What it is:** `customers.city` and `customers.full_name` are free text with no rule.
+- **How I detected it:** seen in the top-100 output: `accra`, `Accra`, `ACCRA`; names in capitals, lower case, or with leading spaces.
+- **Scale:** affects grouping and display, not counts.
+- **Effect on the client's number:** none on spend or stock. Any "spend per city" figure would split Accra into several cities.
+- **What I did about it:** nothing; no report Nana asked for groups by city.
+- **Residual risk:** a future city report must normalise (`initcap(trim(city))`) first.
+
 ## Looked wrong, is not wrong
 
 | Apparent problem | Why it looks wrong | Why it is actually fine |
