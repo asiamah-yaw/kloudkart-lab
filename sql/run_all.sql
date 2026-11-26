@@ -4,3 +4,7 @@
 \timing on
 \ir 01_integrity_checks.sql
 \ir 01b_cost_of_findings.sql
+\echo '##### Phase 2: schema changes #####'
+\ir 02_schema_changes.sql
+\echo '##### Phase 3: audit trail and order placement #####'
+\ir 03_audit_trail.sql
