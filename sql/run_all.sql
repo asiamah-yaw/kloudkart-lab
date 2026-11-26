@@ -13,3 +13,5 @@
 \ir 05_monday_report.sql
 \echo '##### Phase 5: low-stock category rollup #####'
 \ir 06_category_rollup.sql
+\echo '##### Phase 6: indexes and statistics #####'
+\ir 07_indexes_and_stats.sql
