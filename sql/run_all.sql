@@ -8,3 +8,4 @@
 \ir 02_schema_changes.sql
 \echo '##### Phase 3: audit trail and order placement #####'
 \ir 03_audit_trail.sql
+\ir 04_place_order.sql
