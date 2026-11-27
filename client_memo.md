@@ -15,7 +15,7 @@
 
 | You asked for | Status |
 |----|---------------|
-| No overselling | Done in the database: in every test exactly one buyer got the last unit; 400 buyers for 50 units bought exactly 50. Live once the website uses it. Not instant in a rush: with 400 at once, the last waited up to 6.3 seconds. |
+| No overselling | Done in the database: in every test exactly one buyer got the last unit; 400 buyers for 50 units bought exactly 50. Live once the website uses it. Not instant in a rush: with 400 at once, the last waited up to 8.1 seconds. |
 | Fast Monday report | Opens in 0.15 seconds (I didn't have your 40-minute report; my slow version took about 3.5 hours). **Trade-off:** it reads a stored summary, so newer orders show only after the next rebuild (about 7 seconds). The rebuild still needs scheduling. |
 | Low stock by category | Done: any number of levels, under 0.01 seconds. "Low" means 5 units or fewer. |
 | Stock movement trail | Done: every change recorded automatically; old entries can't be edited. |

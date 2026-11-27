@@ -1,7 +1,11 @@
 -- run_all.sql: runs all my lab scripts, in order, against a freshly loaded database.
--- Run AFTER schema.sql and load.sql. Each file is added here as it is built.
+-- Run AFTER schema.sql and load.sql. ON_ERROR_STOP: the first error stops the run.
+-- 02 (schema changes) runs inside its own transaction, so a failure there leaves
+-- the schema unchanged. After any failure, recover by rerunning reset.ps1 / reset.sh
+-- (a fresh load), never by continuing from where it stopped.
 \set ON_ERROR_STOP on
 \timing on
+\echo '##### Phase 1: data diagnosis (read only) #####'
 \ir 01_integrity_checks.sql
 \ir 01b_cost_of_findings.sql
 \echo '##### Phase 2: schema changes #####'

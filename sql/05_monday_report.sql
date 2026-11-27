@@ -25,12 +25,14 @@
 -- ---------------------------------------------------------------------
 CREATE TABLE report_settings (
     only_row  boolean   PRIMARY KEY DEFAULT true CHECK (only_row),  -- guarantees exactly one row
-    as_of     timestamp NOT NULL
+    as_of           timestamp   NOT NULL,
+    last_refreshed  timestamptz NOT NULL DEFAULT now()   -- set by refresh_monday_report()
 );
 INSERT INTO report_settings (as_of) VALUES ('2026-08-31 23:59:59');
 
 COMMENT ON TABLE report_settings IS
-    'Single-row settings for the Monday report. as_of = the moment the report is calculated up to.';
+    'Single-row settings for the Monday report. as_of = the moment the report is calculated up to. '
+    'last_refreshed = when the stored report was last rebuilt, so a stale report is visible.';
 
 -- ---------------------------------------------------------------------
 -- 2. ONE definition of "money spent" (findings F-01, F-03, F-04, F-06).
@@ -199,10 +201,13 @@ ORDER  BY r.spend_rank, r.customer_id;
 CREATE OR REPLACE FUNCTION refresh_monday_report() RETURNS void
 LANGUAGE sql AS $$
     REFRESH MATERIALIZED VIEW CONCURRENTLY monday_report;
+    -- Record the rebuild, so anyone reading the report can see how fresh it is.
+    UPDATE report_settings SET last_refreshed = now();
 $$;
 
 COMMENT ON FUNCTION refresh_monday_report() IS
-    'Rebuilds the Monday report without blocking readers. Run before Adwoa opens it (e.g. Monday 06:00).';
+    'Rebuilds the Monday report without blocking readers and records the time in report_settings.last_refreshed. '
+    'Scheduled with ops/refresh_monday_report.ps1 (Windows) or ops/refresh_monday_report.sh (cron); see README.';
 
 -- ---------------------------------------------------------------------
 -- 6. Self-check (runs on every fresh load). Stops the whole run with an

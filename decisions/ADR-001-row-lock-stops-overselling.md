@@ -22,7 +22,7 @@ I built `place_order` as a single PL/pgSQL **function** that locks the product's
 
 - **How it would work:** the check and the decrement happen in one statement. A second buyer waits on the row, then PostgreSQL re-checks the `WHERE` against the new stock and updates nothing; no row back means "out of stock".
 - **Why it is attractive:** one statement, so the lock is held for the shortest possible time. Also correct.
-- **Why rejected:** the difference in lock time is microseconds (both versions hold the lock until commit), and the measured flash sale already finishes in 4.3 to 6.3 seconds. My version reads stock and price under one lock, so it can tell "product not found" from "out of stock", and reads top to bottom as lock, check, decide for Nana's team. If contention ever became a measured problem, this is the change I would make first.
+- **Why rejected:** the difference in lock time is microseconds (both versions hold the lock until commit), and the measured flash sale already finishes in 4.3 to 8.1 seconds. My version reads stock and price under one lock, so it can tell "product not found" from "out of stock", and reads top to bottom as lock, check, decide for Nana's team. If contention ever became a measured problem, this is the change I would make first.
 
 ### Alternative B: Raise the isolation level to Serializable and retry
 
@@ -44,14 +44,14 @@ I built `place_order` as a single PL/pgSQL **function** that locks the product's
 
 ## Consequences
 
-- **What this buys:** exactly one buyer gets the last unit, every time. Measured on the test laptop: `race_test.py` passed 7 runs out of 7 (25/25 two-buyer rounds each; exactly 50 of 400 sold with 0 errors; oversell refused; trail intact). The same flash sale with the lock removed took **400 orders for 50 units** and left the stock showing 48.
-- **What this costs:** during a flash sale buyers queue on one row. Measured: all 400 answered in 4.3 to 6.3 seconds. Stock-and-order logic now lives in the database, so the shop application must call this function rather than update stock itself.
+- **What this buys:** exactly one buyer gets the last unit, every time. Measured on the test laptop: `race_test.py` passed 11 runs out of 11 (25/25 two-buyer rounds each; exactly 50 of 400 sold with 0 errors; oversell refused; trail intact). The same flash sale with the lock removed took **400 orders for 50 units** and left the stock showing 48.
+- **What this costs:** during a flash sale buyers queue on one row. Measured: all 400 answered in 4.3 to 8.1 seconds (median 6.2 s after the indexes). Stock-and-order logic now lives in the database, so the shop application must call this function rather than update stock itself.
 - **What it costs the client if I am wrong:** if the application keeps an old code path that updates stock directly, that path can still oversell (the CHECK rule stops it going below zero, but with an error at checkout, not a clean message).
 - **What would make me revisit this:** multi-product orders (lock products in ascending `product_id` order so two orders cannot deadlock); measured lock waits becoming visible to customers (switch to Alternative A, and add a short `lock_timeout` with a clear "please try again"); the database's default isolation level being changed from Read Committed.
 
 ## What this survives
 
-- **400 buyers in ten seconds on one product:** yes, tested. 4.3 to 6.3 seconds on a 2016 laptop (see measurement_report.md), no errors, no overselling.
-- **Two buyers at the same instant, repeated:** yes, 175 rounds across 7 runs, one winner each time.
+- **400 buyers in ten seconds on one product:** yes, tested. 4.3 to 8.1 seconds on a 2016 laptop (see measurement_report.md), no errors, no overselling. The slowest runs leave under 2 seconds of margin, so re-measure on the real server before the first flash sale.
+- **Two buyers at the same instant, repeated:** yes, 275 rounds across 11 runs, one winner each time.
 - **A manual stock update in a terminal:** cannot push stock below zero (CHECK rule), and is still logged (ADR-004). It is not protected by the lock unless it uses the function.
 - **Nana's team maintaining it:** one commented function; the lock, the check and the decision are each a few lines.

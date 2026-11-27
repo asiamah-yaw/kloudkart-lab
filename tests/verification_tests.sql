@@ -23,6 +23,7 @@ DECLARE
     v_ok     boolean;
     v_msg    text;
     v_orders_before bigint;
+    v_open   bigint;
 BEGIN
     -- T1. A new product's starting stock is logged (ADR-004).
     SELECT count(*) INTO v_n FROM inventory_log
@@ -62,12 +63,20 @@ BEGIN
     RAISE NOTICE '% T5  unlabelled manual change still logged (reason: %)', CASE WHEN v_reason = 'manual_change' THEN 'PASS' ELSE 'FAIL' END, v_reason;
 
     -- T6. Stock and its history agree for the test product after all of this.
+    -- The sum only means something if the history starts with the opening
+    -- stock row (written by the trigger), so that is asserted too, not assumed.
+    SELECT count(*) INTO v_open FROM inventory_log
+    WHERE product_id = 990001 AND reason = 'opening_stock';
     SELECT p.stock_quantity - (SELECT sum(change_qty) FROM inventory_log l WHERE l.product_id = 990001)
     INTO v_n FROM products p WHERE p.product_id = 990001;
-    RAISE NOTICE '% T6  stock figure matches the sum of its movements (difference %)', CASE WHEN v_n = 0 THEN 'PASS' ELSE 'FAIL' END, v_n;
+    RAISE NOTICE '% T6  history starts with its opening stock row (%) and adds up to the stock figure (difference %)',
+        CASE WHEN v_open = 1 AND v_n = 0 THEN 'PASS' ELSE 'FAIL' END, v_open, v_n;
 END $$;
 
 -- T7. All or nothing: a sale whose transaction fails halfway leaves no trace (ADR-001).
+-- Note: \gset ENDS a query the way a semicolon does, and stores the result in a
+-- psql variable. Adding a semicolon as well would run the query and then make
+-- \gset run it a second time, so these lines correctly have none.
 SAVEPOINT before_t7;
 SELECT stock_quantity AS t7_stock_before FROM products WHERE product_id = 990001 \gset
 SELECT count(*) AS t7_orders_before FROM orders \gset
@@ -125,7 +134,7 @@ INSERT INTO products (product_id, product_name, category_id, price, stock_quanti
 VALUES (990002, 'TEST out of stock', NULL, 10, 0, now()), (990003, 'TEST low cover', NULL, 10, 2, now());
 -- Give both a history that matches their stock: inward stock, then 28 sales of 1 in the last 28 days of as_of.
 INSERT INTO inventory_log (product_id, change_qty, reason, created_at, note)
-SELECT id, CASE WHEN id = 990002 THEN 28 ELSE 30 END - 0, 'restock', (SELECT as_of FROM report_settings) - interval '30 days', 'test'
+SELECT id, CASE WHEN id = 990002 THEN 28 ELSE 30 END, 'restock', (SELECT as_of FROM report_settings) - interval '30 days', 'test'
 FROM (VALUES (990002::bigint), (990003::bigint)) v(id);
 DELETE FROM inventory_log WHERE product_id IN (990002, 990003) AND reason = 'opening_stock';
 INSERT INTO inventory_log (product_id, change_qty, reason, created_at, note)
@@ -134,6 +143,16 @@ FROM (VALUES (990002::bigint), (990003::bigint)) v(id), generate_series(0, 27) d
 SELECT CASE WHEN (SELECT health FROM stock_health WHERE product_id = 990002) = '3 out of stock and selling'
              AND (SELECT health FROM stock_health WHERE product_id = 990003) = '4 low days of cover'
             THEN 'PASS' ELSE 'FAIL' END || ' T13 stock health labels: out-of-stock-and-selling and low-cover detected' AS result;
+
+-- T14. Rebuilding the Monday report records when it happened, so a stale
+-- report is visible (README, "Settings and routine jobs").
+-- (Inside this test's transaction now() is the moment the transaction began,
+-- which is after the fresh load set the first last_refreshed, so it must be later.)
+SELECT last_refreshed AS t14_before FROM report_settings \gset
+SELECT refresh_monday_report();
+SELECT CASE WHEN last_refreshed > :'t14_before'::timestamptz THEN 'PASS' ELSE 'FAIL' END
+       || ' T14 rebuilding the Monday report updates report_settings.last_refreshed' AS result
+FROM report_settings;
 
 ROLLBACK;
 \echo 'All tests ran inside one transaction and were rolled back: the database is unchanged.'

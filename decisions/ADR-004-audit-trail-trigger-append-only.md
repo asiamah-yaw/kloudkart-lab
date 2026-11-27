@@ -1,4 +1,4 @@
-# ADR-004: Record every stock change with a trigger, and keep the log append-only
+# ADR-004: Record every stock change with a trigger, and block edits to the log
 
 - **Status:** Accepted
 - **Date:** 2026-11-26

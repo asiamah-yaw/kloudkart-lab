@@ -59,9 +59,16 @@ def get_connection():
             "then start the dashboard again (from the kloudkart-lab folder)."
         )
         st.stop()
-    conn = psycopg2.connect(
-        url, options="-c default_transaction_read_only=on -c statement_timeout=15000"
-    )
+    try:
+        conn = psycopg2.connect(
+            url, options="-c default_transaction_read_only=on -c statement_timeout=15000"
+        )
+    except psycopg2.OperationalError:
+        # Deliberately generic: never show DATABASE_URL (it contains a password)
+        # or the driver's message, which can include connection details.
+        st.error("Could not connect to the database. Check that the Docker container is running "
+                 "(docker start kloudkart) and that DATABASE_URL in .env is correct.")
+        st.stop()
     conn.autocommit = True
     return conn
 
@@ -91,13 +98,14 @@ def money(x):
 # Header
 # ---------------------------------------------------------------------------
 settings = query(
-    """SELECT r.as_of, s.low_stock_threshold, s.sales_window_days, s.min_days_of_cover
+    """SELECT r.as_of, r.last_refreshed, s.low_stock_threshold, s.sales_window_days, s.min_days_of_cover
        FROM report_settings r CROSS JOIN stock_settings s"""
 ).iloc[0]
 
 st.title("Kloud Kart at a glance")
 st.caption(
-    f"Sales figures up to {settings['as_of']:%d %B %Y} (the Monday report's end date). "
+    f"Sales figures up to {settings['as_of']:%d %B %Y} (the Monday report's end date); "
+    f"report last rebuilt {settings['last_refreshed']:%d %B %Y at %H:%M}. "
     "Stock figures are live. Amounts are in the currency the shop records; the data does not state it. "
     "This screen only reads data; it cannot change anything."
 )

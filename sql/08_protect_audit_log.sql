@@ -1,8 +1,10 @@
 -- =====================================================================
 -- 08_protect_audit_log.sql
--- Makes the stock trail trustworthy: history can be ADDED to, never
--- rewritten. A mistake in the trail is fixed the way an accountant fixes
--- a ledger -- by adding a 'correction' row -- not by editing old rows.
+-- Protects the stock trail against being EDITED or WIPED: rows can be
+-- added, not changed. A mistake in the trail is fixed the way an accountant
+-- fixes a ledger -- by adding a 'correction' row -- not by editing old rows.
+-- It is NOT fully append-only: single rows can still be DELETED (below), so
+-- database permissions, not this trigger, are the real control on deletion.
 --
 -- Blocked: UPDATE (editing a movement) and TRUNCATE (wiping the log).
 -- Deliberately NOT blocked: DELETE. race_test.py, which must run
@@ -15,7 +17,7 @@
 CREATE OR REPLACE FUNCTION refuse_log_change() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
-    RAISE EXCEPTION 'inventory_log is append-only: % is not allowed. Record a correction as a new row instead.', TG_OP
+    RAISE EXCEPTION 'inventory_log rows cannot be changed or wiped: % is not allowed. Record a correction as a new row instead.', TG_OP
         USING HINT = 'INSERT INTO inventory_log (product_id, change_qty, reason, created_at, note) VALUES (..., ''correction'', now(), ''why'')';
 END $$;
 

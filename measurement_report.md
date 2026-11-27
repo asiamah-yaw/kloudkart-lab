@@ -32,9 +32,9 @@ From the brief:
 | Low-stock summary through the whole tree | 3 | 8.6 ms | 9.6 ms | 9.6 ms | Yes ("a couple of seconds") |
 | Stock health: full alert list (improvement) | 2 (137, 139 ms) | 138 ms | 139 ms | 139 ms | No target set; well under a second |
 | Stock health: the 20 products to count first (improvement) | 1 | 72.7 ms | n/a | 72.7 ms | No target set; well under a second |
-| Flash sale: 400 buyers, 50 units (Test 2), with all changes in place | 4 (5.0, 5.2, 5.9, 6.3 s) | 5.6 s | 6.3 s | 6.3 s | Yes (under 10 s; exactly 50 sold, 0 errors, every run) |
-| Two buyers, one unit (Test 1, 25 rounds per run) | 7 runs (175 rounds) | 25/25 every run | | | Yes (exactly one winner every round) |
-| Whole race test (Tests 1 to 4) | 7 runs | passed 7 of 7 | | | Yes |
+| Flash sale: 400 buyers, 50 units (Test 2), with all changes in place | 8 (5.0, 5.2, 5.9, 6.2, 6.3, 6.3, 8.1, 8.1 s) | 6.2 s | 8.1 s | 8.1 s | Yes (under 10 s; exactly 50 sold, 0 errors, every run) |
+| Two buyers, one unit (Test 1, 25 rounds per run) | 11 runs (275 rounds) | 25/25 every run | | | Yes (exactly one winner every round) |
+| Whole race test (Tests 1 to 4) | 11 runs | passed 11 of 11 | | | Yes |
 
 ## Before / after
 
@@ -45,7 +45,7 @@ Each row changes **one** thing.
 | Monday report, written the slow way (one query per figure, per customer) vs the rewrite (one pass over the orders, result stored) | ~3.5 hours (15.5 s per 50 customers × 808) | 2.9 s to build, 0.15 s to read the top 100 | About 4,000× faster to build; Adwoa now reads in under a second | **Kept**: the rewrite, stored and refreshed (ADR-002) |
 | The **same slow query**, only adding indexes | ~3.5 hours | ~1.3 hours (5.9 s per 50 customers × 808) | 2.6× faster but still over an hour: indexes alone do not fix the report; the rewrite does | **Rejected** as the fix (ADR-002, Alternative B); the indexes kept for other lookups |
 | Low-stock summary, before vs after refreshing table statistics (`ANALYZE`) and adding indexes | 917 ms | 8.6 ms | ~107× faster. Isolated separately: `ANALYZE` alone caused it (new settings tables had no statistics, so the planner chose a poor plan); the products index made no difference and was **not** added | **Kept** `ANALYZE` at the end of the load (sql/07) |
-| Flash sale (400 buyers) before vs after the 4 new indexes | 4.4 s (median of 5.2 / 4.3 / 4.4) | 5.6 s (median of 5.2 / 5.9 / 5.0 / 6.3) | About 1.2 s slower at the median. The runs overlap (4.3 to 5.2 before, 5.0 to 6.3 after), so part of this is run-to-run variation; part may be the small extra cost of updating 4 more indexes per order. The 6.3 s run was the first after a full fresh reload (26 Nov), with the Phase 7 changes also in place. Still well within 10 s | **Kept** the indexes: their benefit (below) outweighs a cost within run-to-run variation |
+| Flash sale (400 buyers) before vs after the 4 new indexes | 4.4 s (median of 5.2 / 4.3 / 4.4) | 6.2 s (median of 8 runs: 5.0 / 5.2 / 5.9 / 6.2 / 6.3 / 6.3 / 8.1 / 8.1) | About 1.8 s slower at the median. The runs overlap (4.3 to 5.2 before, 5.0 to 8.1 after). Two runs minutes apart on 27 Nov, with nothing changed between them, took 6.2 s and 8.1 s, so most of the spread is the laptop's load, not the indexes; part may be the small extra cost of updating 4 more indexes per order. Still under 10 s | **Kept** the indexes: their benefit (below) outweighs a cost within run-to-run variation |
 
 Supporting measurements, taken with the same data on a separate test PostgreSQL server to isolate single changes (same method, 3 runs each):
 
@@ -95,6 +95,7 @@ The separate test server (PostgreSQL 16, same data) gave the same picture: 97 ms
 - **A laptop, not the production server.** The server may be faster or slower; it also serves live orders at the same time.
 - **Data will grow.** The Monday report rebuild time grows with the number of orders. At about 4,000 orders a day, re-measure the refresh after a few months.
 - **The stored report is only as fresh as its last refresh.** Reading is instant because it was calculated in advance.
-- **Run-to-run variation is real.** The same flash sale ranged from 4.3 to 6.3 s across 7 runs on the same laptop, with other programs (Docker Desktop, VS Code) running. That is why every run is listed rather than one figure.
+- **Run-to-run variation is real.** The same flash sale ranged from 4.3 to 8.1 s across 11 runs on the same laptop, with other programs (Docker Desktop, VS Code) running; two runs minutes apart on 27 Nov, nothing changed between them, took 6.2 s and 8.1 s. That is why every run is listed rather than one figure.
+- **The margin under 10 seconds is small in the slowest runs.** The slowest run (8.1 s) leaves under 2 seconds to spare. Every run was still correct (exactly 50 sold, no errors), but the timing should be re-measured on Kloud Kart's own server before the first flash sale.
 - **Flash-sale timing includes Python opening 400 connections.** Each buyer holds the product lock for only milliseconds. A real flash sale whose application keeps connections open would be quicker; one with slower networks would be slower.
 - **Supporting measurements** come from a separate test server (PostgreSQL 16, same data), used to change one thing at a time. The headline results above are all from this laptop.
