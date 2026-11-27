@@ -71,7 +71,7 @@ Two buyers race for one unit at the same moment (two separate connections, opene
 | C1: checks the stock, then writes the new figure | **2** (oversold) | 0 (the oversell is hidden) | "order placed" |
 | C2: decrements in one statement, `CHECK (stock >= 0)` underneath | 1 | 0 | `ERROR: new row ... violates check constraint` |
 
-Same result on every run. Neither gives a clean "out of stock": that is why the decision is the row lock in `place_order` (ADR-001). Checked on the separate test server (PostgreSQL 16, same data); the script runs unchanged on the laptop's PostgreSQL 18.
+Same result on every run, on the test laptop (PostgreSQL 18) and on the separate test server (PostgreSQL 16). Neither gives a clean "out of stock": that is why the decision is the row lock in `place_order` (ADR-001).
 
 ## 6. Safety of the load itself
 
