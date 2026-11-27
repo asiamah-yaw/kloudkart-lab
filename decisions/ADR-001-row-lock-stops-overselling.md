@@ -32,14 +32,14 @@ I built `place_order` as a single PL/pgSQL **function** that locks the product's
 
 ### Alternative C: Use a trigger (the suggestion Nana heard)
 
-A trigger can be built two ways. I tested both, with two buyers racing for one unit at the same moment:
+A trigger can be built two ways. I tested both, with two buyers racing for one unit at the same moment (re-runnable: `benchmarks/trigger_alternatives.sql`; results in `verification.md`):
 
 - **C1, a trigger that checks stock, then writes it:** it reads the stock, decides there is enough, then writes the new figure.
   - **Result: both buyers sold, and the stock showed 0.** Each buyer read 1 before the other wrote, and the second write overwrote the first, so the overselling was hidden as well.
 - **C2, a trigger that decrements stock in one statement (`stock = stock - qty`), with the `CHECK (stock >= 0)` rule underneath:** the update takes the product's row lock, so the second buyer waits, then sees the new stock, and the CHECK rule refuses.
   - **Result: exactly one buyer sold.** The other received a raw database error (`violates check constraint`), not "out of stock".
 - **Why it is attractive:** it runs automatically for every writer, so it cannot be forgotten, and C2 does stop overselling.
-- **Why rejected:** a trigger can only refuse by raising an error, which aborts the buyer's whole transaction. The contract needs a clean "out of stock" answer and no error reaching the caller (`race_test.py` counts an error as a failure), plus the new order's number on success, which a trigger cannot return. A trigger also only guards writes made through the table it is attached to. `place_order` uses the same protection as C2 (the row lock) but checks the stock **before** writing, so it can answer cleanly. So the honest answer to Nana is: a trigger alone either lets both orders through (C1) or turns the second into an error at checkout (C2). A trigger is the right tool for writing the stock trail (ADR-004).
+- **Why rejected:** a trigger can only refuse by raising an error, which aborts the buyer's whole transaction. (A `BEFORE` trigger can also refuse by returning `NULL`, but that silently skips the row: the buyer is told nothing at all, which is no better than an error.) The contract needs a clean "out of stock" answer and no error reaching the caller (`race_test.py` counts an error as a failure), plus the new order's number on success, which a trigger cannot return. A trigger also only guards writes made through the table it is attached to. `place_order` uses the same protection as C2 (the row lock) but checks the stock **before** writing, so it can answer cleanly. So the honest answer to Nana is: a trigger alone either lets both orders through (C1) or turns the second into an error at checkout (C2). A trigger is the right tool for writing the stock trail (ADR-004).
 
 ### Alternative D: The `CHECK (stock >= 0)` rule alone
 

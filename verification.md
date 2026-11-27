@@ -60,7 +60,20 @@ All tests run in one transaction that is rolled back, on test products, so no re
 | Stock health finds the expected problem groups | `SELECT * FROM stock_health_summary;` | 14 / 143 / 565 / 928 / 2,373 products |
 | 20 products hold most of the unexplained stock value | `SELECT * FROM stock_count_first;` (plus the share query in `improvement.md`) | 88.3% |
 
-## 5. Safety of the load itself
+## 5. Would a trigger alone have stopped the overselling? (ADR-001, Alternative C)
+
+`docker exec -w /lab -i kloudkart psql -U postgres -d lab -f benchmarks/trigger_alternatives.sql`
+
+Two buyers race for one unit at the same moment (two separate connections, opened with the `dblink` extension), against two kinds of trigger. Everything runs in its own schema, which is dropped at the end.
+
+| Trigger | Units sold (1 in stock) | Stock shown afterwards | What the second buyer got |
+|---|---|---|---|
+| C1: checks the stock, then writes the new figure | **2** (oversold) | 0 (the oversell is hidden) | "order placed" |
+| C2: decrements in one statement, `CHECK (stock >= 0)` underneath | 1 | 0 | `ERROR: new row ... violates check constraint` |
+
+Same result on every run. Neither gives a clean "out of stock": that is why the decision is the row lock in `place_order` (ADR-001). Checked on the separate test server (PostgreSQL 16, same data); the script runs unchanged on the laptop's PostgreSQL 18.
+
+## 6. Safety of the load itself
 
 | What it proves | How it was checked | Result |
 |---|---|---|

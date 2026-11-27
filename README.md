@@ -93,6 +93,7 @@ docker exec -w /lab -i kloudkart psql -U postgres -d lab -f tests/verification_t
 | `tests/verification_tests.sql` | 14 behaviour tests, rolled back afterwards |
 | `benchmarks/monday_report_before.sql` | The slow "before" report, for the measurement report only |
 | `benchmarks/capture_plans.sql` | Saves the query plans to `benchmarks/plans/`. **Run on a test copy only, never on the live server:** to compare with and without an index it drops the index inside a transaction, which locks that table until the rollback |
+| `benchmarks/trigger_alternatives.sql` | Re-runs the trigger test behind ADR-001, Alternative C: two buyers race for one unit against two kinds of trigger. Uses its own schema and removes it afterwards |
 | `benchmarks/top100_alternative.sql` | Tests a faster top-100 read with a temporary view; changes nothing |
 | `ops/refresh_monday_report.ps1`, `ops/refresh_monday_report.sh` | Rebuild the Monday report (see "Settings and routine jobs") |
 | `dashboard/app.py`, `dashboard/requirements.txt` | Optional read-only dashboard |
