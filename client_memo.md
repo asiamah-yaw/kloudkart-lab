@@ -8,7 +8,7 @@
 
 - **Order status is written 15 ways for 5 real statuses.** A report looking only for "completed" misses 273 million of 381 million in sales (completed plus shipped): 72%. I didn't see whether Adwoa's report does this; mine read every spelling.
 - **144 products' stock figures don't match their record of stock in and out**: gaps worth up to 3.87 million at selling price, 88% of it in 20 products. 14 show stock below zero.
-- **2,426 order totals don't match their items.** The totals come to 3.48 million less than their items, mostly by exactly 10% or 25%. I used the totals, *assuming* they are what customers paid.
+- **2,426 order totals don't match their items.** Net, the totals are 3.48 million below their items (5.21 million counting every gap), mostly by exactly 10% or 25%. I used the totals, *assuming* they are what customers paid.
 - **Smaller:** 155 sales orders (0.1% of sales value) have no matching customer; up to 535 accounts may be duplicates, which could change the top 100.
 
 ## What I built (measured results in the measurement report)
@@ -20,7 +20,7 @@
 | Low stock by category | Done: any number of levels, under 0.01 seconds. "Low" means 5 units or fewer. |
 | Stock movement trail | Done: every change recorded automatically; old entries can't be edited. |
 
-**Earlier suggestions:** a "trigger" (automatic check) can't make two orders arriving together take turns; I used one for the trail. A bigger server wouldn't fix how the report asked questions.
+**Earlier suggestions:** a "trigger" (automatic check) alone either lets both orders through or turns the second into an error at checkout instead of a clear "out of stock"; I used one for the trail. A bigger server wouldn't fix how the report asked questions.
 
 ## What I recommend
 

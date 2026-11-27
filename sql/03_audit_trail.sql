@@ -17,9 +17,11 @@
 -- updating stock. "Local" = they vanish when the transaction ends, so
 -- one order's label can never leak onto someone else's change.
 --
--- Note: a trigger does NOT stop two buyers taking the last unit. It
--- fires inside each buyer's own transaction and cannot see the other
--- one's uncommitted change. That job belongs to place_order's row lock.
+-- Note: this logging trigger does NOT stop two buyers taking the last unit.
+-- A trigger that only checks stock lets both through; one that decrements
+-- stock does stop it, but can only refuse with an error, not a clean
+-- "out of stock" (tested: ADR-001, Alternative C). That job belongs to
+-- place_order's row lock, which checks before it writes.
 -- =====================================================================
 
 CREATE OR REPLACE FUNCTION log_stock_change() RETURNS trigger

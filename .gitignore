@@ -1,4 +1,3 @@
-@"
 # Python cache files
 __pycache__/
 *.pyc
@@ -14,4 +13,3 @@ data/
 # Local settings for the optional dashboard (copy .env.example to .env).
 # Never uploaded: it holds a connection string with a password.
 .env
-"@ | Set-Content -Path .gitignore
