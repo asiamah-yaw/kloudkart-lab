@@ -23,6 +23,25 @@ st.set_page_config(page_title="Kloud Kart at a glance", layout="wide")
 # ---------------------------------------------------------------------------
 # Database access
 # ---------------------------------------------------------------------------
+def load_env_file(path=".env"):
+    """Read KEY=value lines from a .env file in the folder you run from, if it
+    exists, so DATABASE_URL need not be typed in every new terminal.
+    A value already set in the terminal wins. The .env file is listed in
+    .gitignore, so it is never uploaded; .env.example shows what goes in it."""
+    if not os.path.exists(path):
+        return
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+load_env_file()
+
+
 @st.cache_resource
 def get_connection():
     """One connection for the app, opened READ ONLY.
@@ -34,9 +53,10 @@ def get_connection():
     url = os.environ.get("DATABASE_URL")
     if not url:
         st.error(
-            "DATABASE_URL is not set. In PowerShell run:\n\n"
+            "DATABASE_URL is not set. Either copy .env.example to .env in the kloudkart-lab folder, "
+            "or in PowerShell run:\n\n"
             '$env:DATABASE_URL="postgresql://postgres:kloudkart@localhost:5432/lab"\n\n'
-            "then start the dashboard again."
+            "then start the dashboard again (from the kloudkart-lab folder)."
         )
         st.stop()
     conn = psycopg2.connect(

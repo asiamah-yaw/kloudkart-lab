@@ -96,11 +96,11 @@ Everything below is added by the scripts; nothing in the original data is rewrit
 A small read-only web page that shows the same figures as charts and tables, for Nana and Adwoa: sales per month, the top 100 (names hidden unless switched on), one customer's months and running total, low stock by category with drill-down, stock health and the 20 products to count first, and the data problems counted live.
 
 ```
-pip install -r dashboard/requirements.txt
-$env:DATABASE_URL="postgresql://postgres:kloudkart@localhost:5432/lab"
-streamlit run dashboard/app.py
+python -m pip install -r dashboard/requirements.txt
+copy .env.example .env
+python -m streamlit run dashboard/app.py
 ```
-Then open the address it prints (usually http://localhost:8501).
+Run these from the `kloudkart-lab` folder, then open the address it prints (usually http://localhost:8501). The `copy` line is needed once: it creates `.env`, which holds `DATABASE_URL` so it need not be typed in every new terminal. `.env` is in `.gitignore`, so it is never uploaded. (`race_test.py` doesn't read `.env`; it still needs `$env:DATABASE_URL=...` set in the terminal.)
 
 - **Optional.** It is not part of the graded SQL solution, and `reset.ps1` doesn't run it. Everything it shows comes from the views the SQL already builds, so the figures are the same as in the reports.
 - **Read-only.** It connects with `default_transaction_read_only=on`, so the database refuses any change made through it.
