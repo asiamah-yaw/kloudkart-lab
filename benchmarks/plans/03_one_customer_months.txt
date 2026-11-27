@@ -1,0 +1,12 @@
+                                                                    QUERY PLAN                                                                     
+---------------------------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using monday_report_customer_month on monday_report  (cost=0.42..27.88 rows=12 width=51) (actual time=0.092..0.095 rows=12.00 loops=1)
+   Index Cond: (customer_id = 116661)
+   Index Searches: 1
+   Buffers: shared hit=4
+ Planning:
+   Buffers: shared hit=12
+ Planning Time: 0.183 ms
+ Execution Time: 0.125 ms
+(8 rows)
+

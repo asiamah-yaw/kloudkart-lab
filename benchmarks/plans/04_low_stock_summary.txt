@@ -1,0 +1,143 @@
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Append  (cost=725.41..1045.40 rows=3 width=56) (actual time=8.199..9.303 rows=9.00 loops=1)
+   Buffers: shared hit=143
+   ->  Subquery Scan on low_stock_by_category  (cost=725.41..729.85 rows=1 width=56) (actual time=8.198..8.255 rows=7.00 loops=1)
+         Buffers: shared hit=51
+         ->  Hash Right Join  (cost=725.41..729.84 rows=1 width=105) (actual time=8.197..8.251 rows=7.00 loops=1)
+               Hash Cond: (a.ancestor_id = t.category_id)
+               Buffers: shared hit=51
+               CTE ancestors
+                 ->  Recursive Union  (cost=0.00..267.59 rows=774 width=45) (actual time=0.008..0.396 rows=263.00 loops=1)
+                       Storage: Memory  Maximum Storage: 54kB
+                       Buffers: shared hit=2
+                       ->  Seq Scan on categories  (cost=0.00..1.94 rows=94 width=45) (actual time=0.007..0.040 rows=94.00 loops=1)
+                             Buffers: shared hit=1
+                       ->  Hash Join  (cost=3.03..25.79 rows=68 width=45) (actual time=0.013..0.074 rows=42.25 loops=4)
+                             Hash Cond: (a_1.ancestor_id = c_2.category_id)
+                             Buffers: shared hit=1
+                             ->  WorkTable Scan on ancestors a_1  (cost=0.00..21.15 rows=157 width=44) (actual time=0.001..0.012 rows=65.25 loops=4)
+                                   Filter: ((NOT is_cycle) AND (hops < 50))
+                                   Rows Removed by Filter: 0
+                             ->  Hash  (cost=1.94..1.94 rows=87 width=8) (actual time=0.033..0.034 rows=87.00 loops=1)
+                                   Buckets: 1024  Batches: 1  Memory Usage: 12kB
+                                   Buffers: shared hit=1
+                                   ->  Seq Scan on categories c_2  (cost=0.00..1.94 rows=87 width=8) (actual time=0.013..0.021 rows=87.00 loops=1)
+                                         Filter: (parent_id IS NOT NULL)
+                                         Rows Removed by Filter: 7
+                                         Buffers: shared hit=1
+               ->  HashAggregate  (cost=403.39..405.25 rows=186 width=36) (actual time=7.578..7.611 rows=91.00 loops=1)
+                     Group Key: a.ancestor_id
+                     Batches: 1  Memory Usage: 32kB
+                     Buffers: shared hit=45
+                     ->  Hash Join  (cost=137.04..281.92 rows=8098 width=12) (actual time=3.516..5.428 rows=12858.00 loops=1)
+                           Hash Cond: (a.category_id = p.category_id)
+                           Buffers: shared hit=45
+                           ->  Nested Loop  (cost=0.00..20.36 rows=387 width=12) (actual time=0.074..0.610 rows=261.00 loops=1)
+                                 Buffers: shared hit=3
+                                 ->  Seq Scan on stock_settings  (cost=0.00..1.01 rows=1 width=4) (actual time=0.064..0.066 rows=1.00 loops=1)
+                                       Buffers: shared hit=1
+                                 ->  CTE Scan on ancestors a  (cost=0.00..15.48 rows=387 width=8) (actual time=0.009..0.513 rows=261.00 loops=1)
+                                       Filter: (NOT is_cycle)
+                                       Rows Removed by Filter: 2
+                                       Storage: Memory  Maximum Storage: 49kB
+                                       Buffers: shared hit=2
+                           ->  Hash  (cost=84.24..84.24 rows=4224 width=8) (actual time=3.420..3.420 rows=3986.00 loops=1)
+                                 Buckets: 8192  Batches: 1  Memory Usage: 220kB
+                                 Buffers: shared hit=42
+                                 ->  Seq Scan on products p  (cost=0.00..84.24 rows=4224 width=8) (actual time=0.067..2.812 rows=4023.00 loops=1)
+                                       Buffers: shared hit=42
+               ->  Hash  (cost=54.42..54.42 rows=1 width=36) (actual time=0.607..0.611 rows=7.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=6
+                     ->  Subquery Scan on t  (cost=52.11..54.42 rows=1 width=36) (actual time=0.591..0.608 rows=7.00 loops=1)
+                           Buffers: shared hit=6
+                           ->  Hash Join  (cost=52.11..54.41 rows=1 width=77) (actual time=0.590..0.606 rows=7.00 loops=1)
+                                 Hash Cond: (c.category_id = d.category_id)
+                                 Buffers: shared hit=6
+                                 CTE down
+                                   ->  Recursive Union  (cost=0.00..48.56 rows=157 width=73) (actual time=0.054..0.454 rows=91.00 loops=1)
+                                         Storage: Memory  Maximum Storage: 45kB
+                                         Buffers: shared hit=5
+                                         ->  Seq Scan on categories categories_1  (cost=0.00..1.94 rows=7 width=51) (actual time=0.052..0.066 rows=7.00 loops=1)
+                                               Filter: (parent_id IS NULL)
+                                               Rows Removed by Filter: 87
+                                               Buffers: shared hit=1
+                                         ->  Hash Join  (cost=1.73..4.51 rows=15 width=73) (actual time=0.056..0.089 rows=21.00 loops=4)
+                                               Hash Cond: (c_3.parent_id = d_2.category_id)
+                                               Buffers: shared hit=4
+                                               ->  Seq Scan on categories c_3  (cost=0.00..1.94 rows=94 width=18) (actual time=0.003..0.007 rows=94.00 loops=4)
+                                                     Buffers: shared hit=4
+                                               ->  Hash  (cost=1.57..1.57 rows=12 width=72) (actual time=0.013..0.013 rows=22.75 loops=4)
+                                                     Buckets: 1024  Batches: 1  Memory Usage: 18kB
+                                                     ->  WorkTable Scan on down d_2  (cost=0.00..1.57 rows=12 width=72) (actual time=0.001..0.004 rows=22.75 loops=4)
+                                                           Filter: ((NOT is_cycle) AND (depth < 50))
+                                 ->  Seq Scan on categories c  (cost=0.00..1.94 rows=94 width=14) (actual time=0.074..0.078 rows=94.00 loops=1)
+                                       Buffers: shared hit=1
+                                 ->  Hash  (cost=3.53..3.53 rows=1 width=36) (actual time=0.512..0.512 rows=7.00 loops=1)
+                                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                       Buffers: shared hit=5
+                                       ->  CTE Scan on down d  (cost=0.00..3.53 rows=1 width=36) (actual time=0.058..0.504 rows=7.00 loops=1)
+                                             Filter: ((NOT is_cycle) AND (depth = 1))
+                                             Rows Removed by Filter: 84
+                                             Storage: Memory  Maximum Storage: 33kB
+                                             Buffers: shared hit=5
+   ->  Aggregate  (cost=229.39..229.40 rows=1 width=56) (actual time=0.801..0.803 rows=1.00 loops=1)
+         Buffers: shared hit=49
+         ->  Hash Join  (cost=57.92..189.73 rows=3173 width=8) (actual time=0.362..0.799 rows=6.00 loops=1)
+               Hash Cond: (p_1.category_id = c_1.category_id)
+               Buffers: shared hit=49
+               ->  Seq Scan on products p_1  (cost=0.00..84.24 rows=4224 width=8) (actual time=0.012..0.219 rows=4023.00 loops=1)
+                     Buffers: shared hit=42
+               ->  Hash  (cost=57.33..57.33 rows=47 width=8) (actual time=0.279..0.281 rows=3.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=7
+                     ->  Nested Loop  (cost=52.68..57.33 rows=47 width=8) (actual time=0.275..0.279 rows=3.00 loops=1)
+                           Buffers: shared hit=7
+                           ->  Seq Scan on stock_settings s  (cost=0.00..1.01 rows=1 width=4) (actual time=0.004..0.004 rows=1.00 loops=1)
+                                 Buffers: shared hit=1
+                           ->  Hash Anti Join  (cost=52.68..55.38 rows=47 width=77) (actual time=0.270..0.273 rows=3.00 loops=1)
+                                 Hash Cond: (c_1.category_id = d_1.category_id)
+                                 Buffers: shared hit=6
+                                 CTE down
+                                   ->  Recursive Union  (cost=0.00..48.56 rows=157 width=73) (actual time=0.006..0.204 rows=91.00 loops=1)
+                                         Storage: Memory  Maximum Storage: 45kB
+                                         Buffers: shared hit=5
+                                         ->  Seq Scan on categories categories_2  (cost=0.00..1.94 rows=7 width=51) (actual time=0.005..0.011 rows=7.00 loops=1)
+                                               Filter: (parent_id IS NULL)
+                                               Rows Removed by Filter: 87
+                                               Buffers: shared hit=1
+                                         ->  Hash Join  (cost=1.73..4.51 rows=15 width=73) (actual time=0.019..0.042 rows=21.00 loops=4)
+                                               Hash Cond: (c_4.parent_id = d_3.category_id)
+                                               Buffers: shared hit=4
+                                               ->  Seq Scan on categories c_4  (cost=0.00..1.94 rows=94 width=18) (actual time=0.002..0.006 rows=94.00 loops=4)
+                                                     Buffers: shared hit=4
+                                               ->  Hash  (cost=1.57..1.57 rows=12 width=72) (actual time=0.008..0.008 rows=22.75 loops=4)
+                                                     Buckets: 1024  Batches: 1  Memory Usage: 18kB
+                                                     ->  WorkTable Scan on down d_3  (cost=0.00..1.57 rows=12 width=72) (actual time=0.001..0.004 rows=22.75 loops=4)
+                                                           Filter: ((NOT is_cycle) AND (depth < 50))
+                                 ->  Seq Scan on categories c_1  (cost=0.00..1.94 rows=94 width=4) (actual time=0.005..0.010 rows=94.00 loops=1)
+                                       Buffers: shared hit=1
+                                 ->  Hash  (cost=3.14..3.14 rows=78 width=4) (actual time=0.248..0.248 rows=91.00 loops=1)
+                                       Buckets: 1024  Batches: 1  Memory Usage: 12kB
+                                       Buffers: shared hit=5
+                                       ->  CTE Scan on down d_1  (cost=0.00..3.14 rows=78 width=4) (actual time=0.008..0.237 rows=91.00 loops=1)
+                                             Filter: (NOT is_cycle)
+                                             Storage: Memory  Maximum Storage: 33kB
+                                             Buffers: shared hit=5
+   ->  Aggregate  (cost=86.13..86.14 rows=1 width=56) (actual time=0.239..0.239 rows=1.00 loops=1)
+         Buffers: shared hit=43
+         ->  Nested Loop  (cost=0.00..85.64 rows=39 width=8) (actual time=0.029..0.233 rows=37.00 loops=1)
+               Buffers: shared hit=43
+               ->  Seq Scan on stock_settings s_1  (cost=0.00..1.01 rows=1 width=4) (actual time=0.004..0.004 rows=1.00 loops=1)
+                     Buffers: shared hit=1
+               ->  Seq Scan on products p_2  (cost=0.00..84.24 rows=39 width=4) (actual time=0.025..0.224 rows=37.00 loops=1)
+                     Filter: (category_id IS NULL)
+                     Rows Removed by Filter: 3986
+                     Buffers: shared hit=42
+ Planning:
+   Buffers: shared hit=123
+ Planning Time: 2.102 ms
+ Execution Time: 9.582 ms
+(139 rows)
+

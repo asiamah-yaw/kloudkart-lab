@@ -1,0 +1,105 @@
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=18026.05..18036.56 rows=4203 width=215) (actual time=169.828..169.912 rows=1650.00 loops=1)
+   Sort Key: (CASE WHEN (p.stock_quantity < 0) THEN '1 below zero (oversold)'::text WHEN (p.stock_quantity <> COALESCE(h.expected_stock, '0'::bigint)) THEN '2 figure does not match history'::text WHEN ((COALESCE(r.sold_in_window, '0'::bigint) > 0) AND (p.stock_quantity = 0)) THEN '3 out of stock and selling'::text WHEN ((COALESCE(r.sold_in_window, '0'::bigint) > 0) AND (CASE WHEN (COALESCE(r.sold_in_window, '0'::bigint) > 0) THEN ((GREATEST(p.stock_quantity, 0))::numeric / ((COALESCE(r.sold_in_window, '0'::bigint))::numeric / (s.sales_window_days)::numeric)) ELSE NULL::numeric END < (s.min_days_of_cover)::numeric)) THEN '4 low days of cover'::text ELSE '5 ok'::text END), (((abs((p.stock_quantity - COALESCE(h.expected_stock, '0'::bigint))))::numeric * p.price)) DESC, (round(CASE WHEN (COALESCE(r.sold_in_window, '0'::bigint) > 0) THEN ((GREATEST(p.stock_quantity, 0))::numeric / ((COALESCE(r.sold_in_window, '0'::bigint))::numeric / (s.sales_window_days)::numeric)) ELSE NULL::numeric END, 1)), p.product_id
+   Sort Method: quicksort  Memory: 305kB
+   Buffers: shared hit=5312
+   ->  Hash Left Join  (cost=17083.61..17773.09 rows=4203 width=215) (actual time=156.736..164.825 rows=1650.00 loops=1)
+         Hash Cond: (p.category_id = t.category_id)
+         Buffers: shared hit=5309
+         CTE settings
+           ->  Nested Loop  (cost=0.00..2.03 rows=1 width=16) (actual time=0.019..0.024 rows=1.00 loops=1)
+                 Buffers: shared hit=2
+                 ->  Seq Scan on report_settings r_1  (cost=0.00..1.01 rows=1 width=8) (actual time=0.011..0.012 rows=1.00 loops=1)
+                       Buffers: shared hit=1
+                 ->  Seq Scan on stock_settings s_2  (cost=0.00..1.01 rows=1 width=8) (actual time=0.005..0.008 rows=1.00 loops=1)
+                       Buffers: shared hit=1
+         ->  Hash Left Join  (cost=17024.21..17172.94 rows=4203 width=62) (actual time=156.295..161.149 rows=1650.00 loops=1)
+               Hash Cond: (p.product_id = r.product_id)
+               Filter: (CASE WHEN (p.stock_quantity < 0) THEN '1 below zero (oversold)'::text WHEN (p.stock_quantity <> COALESCE(h.expected_stock, '0'::bigint)) THEN '2 figure does not match history'::text WHEN ((COALESCE(r.sold_in_window, '0'::bigint) > 0) AND (p.stock_quantity = 0)) THEN '3 out of stock and selling'::text WHEN ((COALESCE(r.sold_in_window, '0'::bigint) > 0) AND (CASE WHEN (COALESCE(r.sold_in_window, '0'::bigint) > 0) THEN ((GREATEST(p.stock_quantity, 0))::numeric / ((COALESCE(r.sold_in_window, '0'::bigint))::numeric / (s.sales_window_days)::numeric)) ELSE NULL::numeric END < (s.min_days_of_cover)::numeric)) THEN '4 low days of cover'::text ELSE '5 ok'::text END <> '5 ok'::text)
+               Rows Removed by Filter: 2373
+               Buffers: shared hit=5303
+               ->  Hash Left Join  (cost=6458.29..6595.89 rows=4224 width=54) (actual time=74.232..75.977 rows=4023.00 loops=1)
+                     Hash Cond: (p.product_id = h.product_id)
+                     Buffers: shared hit=2136
+                     ->  Nested Loop  (cost=0.00..126.50 rows=4224 width=46) (actual time=0.027..0.858 rows=4023.00 loops=1)
+                           Buffers: shared hit=44
+                           ->  CTE Scan on settings s  (cost=0.00..0.02 rows=1 width=8) (actual time=0.021..0.022 rows=1.00 loops=1)
+                                 Storage: Memory  Maximum Storage: 17kB
+                                 Buffers: shared hit=2
+                           ->  Seq Scan on products p  (cost=0.00..84.24 rows=4224 width=38) (actual time=0.005..0.295 rows=4023.00 loops=1)
+                                 Buffers: shared hit=42
+                     ->  Hash  (cost=6407.90..6407.90 rows=4031 width=12) (actual time=74.199..74.200 rows=4134.00 loops=1)
+                           Buckets: 8192 (originally 4096)  Batches: 1 (originally 1)  Memory Usage: 242kB
+                           Buffers: shared hit=2092
+                           ->  Subquery Scan on h  (cost=6327.28..6407.90 rows=4031 width=12) (actual time=72.834..73.642 rows=4134.00 loops=1)
+                                 Buffers: shared hit=2092
+                                 ->  HashAggregate  (cost=6327.28..6367.59 rows=4031 width=12) (actual time=72.833..73.323 rows=4134.00 loops=1)
+                                       Group Key: inventory_log.product_id
+                                       Batches: 1  Memory Usage: 409kB
+                                       Buffers: shared hit=2092
+                                       ->  Seq Scan on inventory_log  (cost=0.00..4915.52 rows=282352 width=8) (actual time=0.006..17.709 rows=282352.00 loops=1)
+                                             Buffers: shared hit=2092
+               ->  Hash  (cost=10515.53..10515.53 rows=4031 width=12) (actual time=82.041..82.043 rows=4032.00 loops=1)
+                     Buckets: 4096  Batches: 1  Memory Usage: 206kB
+                     Buffers: shared hit=3167
+                     ->  Subquery Scan on r  (cost=10424.83..10515.53 rows=4031 width=12) (actual time=80.650..81.492 rows=4032.00 loops=1)
+                           Buffers: shared hit=3167
+                           ->  HashAggregate  (cost=10424.83..10475.22 rows=4031 width=12) (actual time=80.648..81.126 rows=4032.00 loops=1)
+                                 Group Key: l.product_id
+                                 Batches: 1  Memory Usage: 409kB
+                                 Buffers: shared hit=3167
+                                 ->  Nested Loop  (cost=7191.21..10279.59 rows=29049 width=8) (actual time=56.552..72.440 rows=54201.00 loops=1)
+                                       Buffers: shared hit=3167
+                                       ->  CTE Scan on settings s_1  (cost=0.00..0.02 rows=1 width=12) (actual time=0.001..0.008 rows=1.00 loops=1)
+                                             Storage: Memory  Maximum Storage: 17kB
+                                       ->  Bitmap Heap Scan on inventory_log l  (cost=7191.21..9989.08 rows=29049 width=16) (actual time=56.547..67.797 rows=54201.00 loops=1)
+                                             Recheck Cond: ((created_at > (s_1.as_of - make_interval(0, 0, 0, s_1.sales_window_days, 0, 0, '0'::double precision))) AND (created_at <= s_1.as_of))
+                                             Filter: (reason = 'sale'::text)
+                                             Rows Removed by Filter: 1398
+                                             Heap Blocks: exact=2080
+                                             Buffers: shared hit=3167
+                                             ->  Bitmap Index Scan on inventory_log_product_date_idx  (cost=0.00..7183.95 rows=31372 width=0) (actual time=56.245..56.246 rows=55655.00 loops=1)
+                                                   Index Cond: ((created_at > (s_1.as_of - make_interval(0, 0, 0, s_1.sales_window_days, 0, 0, '0'::double precision))) AND (created_at <= s_1.as_of))
+                                                   Index Searches: 1
+                                                   Buffers: shared hit=1087
+         ->  Hash  (cost=56.19..56.19 rows=94 width=36) (actual time=0.334..0.338 rows=94.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 15kB
+               Buffers: shared hit=6
+               ->  Subquery Scan on t  (cost=51.68..56.19 rows=94 width=36) (actual time=0.057..0.322 rows=94.00 loops=1)
+                     Buffers: shared hit=6
+                     ->  Hash Right Join  (cost=51.68..55.25 rows=94 width=77) (actual time=0.057..0.314 rows=94.00 loops=1)
+                           Hash Cond: (d.category_id = c.category_id)
+                           Buffers: shared hit=6
+                           CTE down
+                             ->  Recursive Union  (cost=0.00..48.56 rows=157 width=73) (actual time=0.008..0.211 rows=91.00 loops=1)
+                                   Storage: Memory  Maximum Storage: 45kB
+                                   Buffers: shared hit=5
+                                   ->  Seq Scan on categories  (cost=0.00..1.94 rows=7 width=51) (actual time=0.006..0.012 rows=7.00 loops=1)
+                                         Filter: (parent_id IS NULL)
+                                         Rows Removed by Filter: 87
+                                         Buffers: shared hit=1
+                                   ->  Hash Join  (cost=1.73..4.51 rows=15 width=73) (actual time=0.020..0.043 rows=21.00 loops=4)
+                                         Hash Cond: (c_1.parent_id = d_1.category_id)
+                                         Buffers: shared hit=4
+                                         ->  Seq Scan on categories c_1  (cost=0.00..1.94 rows=94 width=18) (actual time=0.002..0.006 rows=94.00 loops=4)
+                                               Buffers: shared hit=4
+                                         ->  Hash  (cost=1.57..1.57 rows=12 width=72) (actual time=0.008..0.008 rows=22.75 loops=4)
+                                               Buckets: 1024  Batches: 1  Memory Usage: 18kB
+                                               ->  WorkTable Scan on down d_1  (cost=0.00..1.57 rows=12 width=72) (actual time=0.001..0.004 rows=22.75 loops=4)
+                                                     Filter: ((NOT is_cycle) AND (depth < 50))
+                           ->  CTE Scan on down d  (cost=0.00..3.14 rows=78 width=36) (actual time=0.010..0.244 rows=91.00 loops=1)
+                                 Filter: (NOT is_cycle)
+                                 Storage: Memory  Maximum Storage: 33kB
+                                 Buffers: shared hit=5
+                           ->  Hash  (cost=1.94..1.94 rows=94 width=14) (actual time=0.044..0.044 rows=94.00 loops=1)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 13kB
+                                 Buffers: shared hit=1
+                                 ->  Seq Scan on categories c  (cost=0.00..1.94 rows=94 width=14) (actual time=0.015..0.022 rows=94.00 loops=1)
+                                       Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=151
+ Planning Time: 3.274 ms
+ Execution Time: 170.316 ms
+(101 rows)
+

@@ -19,7 +19,8 @@
 -- 1. The "as of" date. The 12-month window ends here.
 -- For this extract: 31 Aug 2026 (finding F-06: activity stops there and
 -- 24 stray orders are dated later). In normal use, set it to the end of
--- yesterday before the Monday refresh. A table, not a hard-coded date,
+-- the last complete month before the refresh, so the newest month in the
+-- report is never partial (ADR-002). A table, not a hard-coded date,
 -- so changing it needs no code change.
 -- ---------------------------------------------------------------------
 CREATE TABLE report_settings (
@@ -157,7 +158,9 @@ LEFT   JOIN before_window b ON b.customer_id = g.customer_id;
 -- A unique index is what allows REFRESH ... CONCURRENTLY (section 5),
 -- and it makes "one customer's 12 months" an instant lookup.
 CREATE UNIQUE INDEX monday_report_customer_month ON monday_report (customer_id, month);
--- Makes "the top 100" an instant lookup instead of a scan.
+-- Meant to make "the top 100" an index lookup. Note (measurement_report.md, plan 01):
+-- top_100_customers reads through monday_report_summary and does NOT use it; reading
+-- ranked rows directly does (tested, not applied: benchmarks/top100_alternative.sql).
 CREATE INDEX monday_report_rank ON monday_report (spend_rank) WHERE spend_rank IS NOT NULL;
 
 COMMENT ON MATERIALIZED VIEW monday_report IS

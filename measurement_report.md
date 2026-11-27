@@ -40,22 +40,52 @@ From the brief:
 
 Each row changes **one** thing.
 
-| Query / stage | Before | After | Change |
-|---|---|---|---|
-| Monday report, written the slow way (one query per figure, per customer) vs the rewrite (one pass over the orders, result stored) | ~3.5 hours (15.5 s per 50 customers × 808) | 2.9 s to build, 0.15 s to read the top 100 | About 4,000× faster to build; Adwoa now reads in under a second |
-| The **same slow query**, only adding indexes | ~3.5 hours | ~1.3 hours (5.9 s per 50 customers × 808) | 2.6× faster but still over an hour: indexes alone do not fix the report; the rewrite does |
-| Low-stock summary, before vs after refreshing table statistics (`ANALYZE`) and adding indexes | 917 ms | 8.6 ms | ~107× faster. Isolated separately: `ANALYZE` alone caused it (new settings tables had no statistics, so the planner chose a poor plan); the products index made no difference and was **not** added |
-| Flash sale (400 buyers) before vs after the 4 new indexes | 4.4 s (median of 5.2 / 4.3 / 4.4) | 5.6 s (median of 5.2 / 5.9 / 5.0 / 6.3) | About 1.2 s slower at the median. The runs overlap (4.3 to 5.2 before, 5.0 to 6.3 after), so part of this is run-to-run variation; part may be the small extra cost of updating 4 more indexes per order. The 6.3 s run was the first after a full fresh reload (26 Nov), with the Phase 7 changes also in place. Still well within 10 s |
+| Query / stage | Before | After | Change | Decision |
+|---|---|---|---|---|
+| Monday report, written the slow way (one query per figure, per customer) vs the rewrite (one pass over the orders, result stored) | ~3.5 hours (15.5 s per 50 customers × 808) | 2.9 s to build, 0.15 s to read the top 100 | About 4,000× faster to build; Adwoa now reads in under a second | **Kept**: the rewrite, stored and refreshed (ADR-002) |
+| The **same slow query**, only adding indexes | ~3.5 hours | ~1.3 hours (5.9 s per 50 customers × 808) | 2.6× faster but still over an hour: indexes alone do not fix the report; the rewrite does | **Rejected** as the fix (ADR-002, Alternative B); the indexes kept for other lookups |
+| Low-stock summary, before vs after refreshing table statistics (`ANALYZE`) and adding indexes | 917 ms | 8.6 ms | ~107× faster. Isolated separately: `ANALYZE` alone caused it (new settings tables had no statistics, so the planner chose a poor plan); the products index made no difference and was **not** added | **Kept** `ANALYZE` at the end of the load (sql/07) |
+| Flash sale (400 buyers) before vs after the 4 new indexes | 4.4 s (median of 5.2 / 4.3 / 4.4) | 5.6 s (median of 5.2 / 5.9 / 5.0 / 6.3) | About 1.2 s slower at the median. The runs overlap (4.3 to 5.2 before, 5.0 to 6.3 after), so part of this is run-to-run variation; part may be the small extra cost of updating 4 more indexes per order. The 6.3 s run was the first after a full fresh reload (26 Nov), with the Phase 7 changes also in place. Still well within 10 s | **Kept** the indexes: their benefit (below) outweighs a cost within run-to-run variation |
 
 Supporting measurements, taken with the same data on a separate test PostgreSQL server to isolate single changes (same method, 3 runs each):
 
-| Change | Before | After |
-|---|---|---|
-| Delete 2,000 orders (the foreign key checks the order lines for each one) without / with an index on `order_items(order_id)` | ~28 s | ~15 ms |
-| One customer's orders without / with an index on `orders(customer_id, order_date)` | ~7 ms | ~1.2 ms |
-| One product's stock history without / with an index on `inventory_log(product_id, created_at)` | ~11 ms | ~2 ms |
-| Place 2,000 orders one after another, without / with the 4 indexes | ~263 ms | ~224 ms (no measurable slowdown) |
-| Index on `products(category_id)` | 6 ms | 6 ms (no gain, not added) |
+| Change | Before | After | Decision |
+|---|---|---|---|
+| Delete 2,000 orders (the foreign key checks the order lines for each one) without / with an index on `order_items(order_id)` | ~28 s | ~15 ms | **Kept** |
+| One customer's orders without / with an index on `orders(customer_id, order_date)` | ~7 ms | ~1.2 ms | **Kept** |
+| One product's stock history without / with an index on `inventory_log(product_id, created_at)` | ~11 ms | ~2 ms | **Kept** |
+| Place 2,000 orders one after another, without / with the 4 indexes | ~263 ms | ~224 ms (no measurable slowdown) | Write cost accepted |
+| Index on `products(category_id)` | 6 ms | 6 ms (no gain, not added) | **Rejected**: an index that does nothing still slows every write |
+
+## Query plans (evidence)
+
+The database's own explanation of the key queries (`EXPLAIN (ANALYZE, BUFFERS)`) is saved in `benchmarks/plans/`, so the reasons behind the timings can be checked, not just the timings. Produced on the test laptop by `benchmarks/capture_plans.sql`, after a fresh load. Each plan is one warm run; the medians above are the figures to quote.
+
+| File | What it shows |
+|---|---|
+| `01_top_100_read.txt` | Reading the top 100 through `top_100_customers` reads **every row** of the stored report (486,792, one per customer per month) to pick one row per customer, then keeps the 100 ranked. **The partial rank index `monday_report_rank` is not used.** Still well within target (about 0.15 s), but see the finding below |
+| `02_monday_report_build.txt` | Building the report scans the orders **once**, groups them, then calculates the running total and rank (no loop per customer) |
+| `03_one_customer_months.txt` | One customer's 12 months come from the unique `(customer_id, month)` index |
+| `04_low_stock_summary.txt` | The rollup walks the 94-row category tree recursively (`Recursive Union`) and reads the 4,023 products: a few milliseconds with no extra index, because both tables are small |
+| `05_stock_health_alerts.txt` | The improvement's alert list: one scan of the 282,352-row stock log, grouped per product (`HashAggregate`) |
+| `06_customer_orders_with_without_index.txt` | With `orders_customer_date_idx`: an index lookup. Without it: every one of the 159,384 orders is read |
+| `07_product_history_with_without_index.txt` | With `inventory_log_product_date_idx`: an index lookup, already in time order. Without it: all 282,352 movements read, then sorted |
+| `08_order_lines_with_without_index.txt` | With `order_items_order_idx`: an index lookup. Without it: all 336,559 order lines read. This is also the check each order deletion makes through the foreign key |
+
+In files 06 to 08 the index is dropped **inside a transaction and rolled back**, so capturing the plans leaves the database unchanged.
+
+**Finding from reading the plans (plan 01).** The top-100 view goes through `monday_report_summary`, which has to pick one row per customer from all 12 months before it can filter on rank, so the database reads every row of the stored report and never uses the rank index `monday_report_rank`.
+
+A faster alternative was **tested on a scratch copy and not applied**: read the ranked rows straight from the stored report, for the report's last month only (`benchmarks/top100_alternative.sql`, which uses a temporary view and changes nothing). Measured on the test laptop after a fresh load, 5 warm runs each:
+
+| Top-100 read | Runs | Median | Uses the rank index? | Same 100 rows? |
+|---|---|---|---|---|
+| Delivered view (`top_100_customers`) | 127, 130, 134, 147, 157 ms | 134 ms | No | (reference) |
+| Alternative, not applied | 1.56, 1.76, 1.83, 1.91, 1.95 ms | 1.83 ms | Yes (`monday_report_rank`) | Yes: 0 rows differ in either direction, 100 and 100 |
+
+The separate test server (PostgreSQL 16, same data) gave the same picture: 97 ms against 1.07 ms.
+
+**Decision: kept the delivered view.** It already meets Nana's target ("in seconds"): 0.15 s on the test laptop. Changing it now would mean re-running every check and changing the 0.15 s figure in four documents, for a gain nobody using the report would notice. If the read grew in step with the stored report (an assumption, not measured), ten times today's rows would still take only about 1.5 s. **Apply the alternative** if the top-100 read ever exceeds about 1 second, or the stored report grows to roughly ten times today's 486,792 rows.
 
 ## Caveats
 

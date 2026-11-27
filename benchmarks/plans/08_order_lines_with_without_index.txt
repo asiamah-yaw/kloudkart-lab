@@ -1,0 +1,33 @@
+                                                           QUERY PLAN                                                            
+---------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on order_items  (cost=4.45..16.15 rows=3 width=23) (actual time=0.039..0.040 rows=2.00 loops=1)
+   Recheck Cond: (order_id = 659384)
+   Heap Blocks: exact=2
+   Buffers: shared hit=5
+   ->  Bitmap Index Scan on order_items_order_idx  (cost=0.00..4.45 rows=3 width=0) (actual time=0.015..0.015 rows=2.00 loops=1)
+         Index Cond: (order_id = 659384)
+         Index Searches: 1
+         Buffers: shared hit=3
+ Planning Time: 0.129 ms
+ Execution Time: 0.069 ms
+(10 rows)
+
+BEGIN
+DROP INDEX
+                                                         QUERY PLAN                                                          
+-----------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..5643.00 rows=3 width=23) (actual time=26.687..63.210 rows=2.00 loops=1)
+   Workers Planned: 1
+   Workers Launched: 1
+   Buffers: shared hit=2168
+   ->  Parallel Seq Scan on order_items  (cost=0.00..4642.70 rows=2 width=23) (actual time=28.862..44.712 rows=1.00 loops=2)
+         Filter: (order_id = 659384)
+         Rows Removed by Filter: 168278
+         Buffers: shared hit=2168
+ Planning:
+   Buffers: shared hit=5
+ Planning Time: 0.140 ms
+ Execution Time: 63.232 ms
+(12 rows)
+
+ROLLBACK

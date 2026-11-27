@@ -1,0 +1,29 @@
+                                                                                       QUERY PLAN                                                                                       
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=29298.84..29332.53 rows=13473 width=50) (actual time=200.936..200.966 rows=100.00 loops=1)
+   Sort Key: r.spend_rank, r.customer_id
+   Sort Method: quicksort  Memory: 32kB
+   Buffers: shared hit=7263
+   ->  Hash Join  (cost=1429.87..28374.74 rows=13473 width=50) (actual time=51.589..200.826 rows=100.00 loops=1)
+         Hash Cond: (r.customer_id = c.customer_id)
+         Buffers: shared hit=7263
+         ->  Subquery Scan on r  (cost=0.42..26909.61 rows=13595 width=30) (actual time=1.811..150.837 rows=100.00 loops=1)
+               Filter: (r.spend_rank <= 100)
+               Rows Removed by Filter: 40466
+               Buffers: shared hit=6743
+               ->  Unique  (cost=0.42..26399.78 rows=40786 width=35) (actual time=0.024..146.457 rows=40566.00 loops=1)
+                     Buffers: shared hit=6743
+                     ->  Index Scan using monday_report_customer_month on monday_report  (cost=0.42..25182.80 rows=486792 width=35) (actual time=0.023..107.457 rows=486792.00 loops=1)
+                           Index Searches: 1
+                           Buffers: shared hit=6743
+         ->  Hash  (cost=924.20..924.20 rows=40420 width=24) (actual time=49.158..49.158 rows=40420.00 loops=1)
+               Buckets: 65536  Batches: 1  Memory Usage: 2787kB
+               Buffers: shared hit=520
+               ->  Seq Scan on customers c  (cost=0.00..924.20 rows=40420 width=24) (actual time=0.091..33.928 rows=40420.00 loops=1)
+                     Buffers: shared hit=520
+ Planning:
+   Buffers: shared hit=15
+ Planning Time: 0.480 ms
+ Execution Time: 201.284 ms
+(25 rows)
+

@@ -69,6 +69,8 @@ docker exec -w /lab -i kloudkart psql -U postgres -d lab -f tests/verification_t
 | `sql/08_protect_audit_log.sql` | Refuses edits (`UPDATE`) and emptying (`TRUNCATE`) of the stock log |
 | `sql/09_stock_health.sql` | The improvement: days of cover and stock-figure checks |
 | `benchmarks/monday_report_before.sql` | The slow "before" report, for the measurement report only (not in `run_all.sql`) |
+| `benchmarks/capture_plans.sql` | Saves the query plans to `benchmarks/plans/` (evidence for the measurement report; not in `run_all.sql`). **Run on a test copy only, never on the live server:** to compare with and without an index it drops the index inside a transaction, which locks that table until the rollback |
+| `benchmarks/top100_alternative.sql` | Tests a faster top-100 read with a temporary view; changes nothing (see the measurement report, plan 01) |
 | `tests/verification_tests.sql` | 13 behaviour tests (not in `run_all.sql`) |
 | `dashboard/app.py`, `dashboard/requirements.txt` | Optional read-only dashboard (not in `run_all.sql`) |
 
