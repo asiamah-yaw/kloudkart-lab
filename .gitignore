@@ -1,3 +1,4 @@
+@"
 # Python cache files
 __pycache__/
 *.pyc
@@ -9,3 +10,8 @@ desktop.ini
 
 # Customer data (personal info). Excluded until the instructor confirms
 data/
+
+# Local settings for the optional dashboard (copy .env.example to .env).
+# Never uploaded: it holds a connection string with a password.
+.env
+"@ | Set-Content -Path .gitignore

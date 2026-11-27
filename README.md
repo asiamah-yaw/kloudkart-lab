@@ -15,6 +15,7 @@ Kloud Kart runs on one PostgreSQL server with a schema nobody ever redesigned. T
 | 5. One improvement beyond the brief | `improvement.md` (built in `sql/09_stock_health.sql`) |
 | Performance, before and after | `measurement_report.md` (before query in `benchmarks/`) |
 | Evidence that it works | `verification.md` (tests in `tests/verification_tests.sql`) |
+| Optional: a visual dashboard for non-technical readers | `dashboard/app.py` (see below) |
 
 ## How to run it from a fresh load
 
@@ -69,6 +70,7 @@ docker exec -w /lab -i kloudkart psql -U postgres -d lab -f tests/verification_t
 | `sql/09_stock_health.sql` | The improvement: days of cover and stock-figure checks |
 | `benchmarks/monday_report_before.sql` | The slow "before" report, for the measurement report only (not in `run_all.sql`) |
 | `tests/verification_tests.sql` | 13 behaviour tests (not in `run_all.sql`) |
+| `dashboard/app.py`, `dashboard/requirements.txt` | Optional read-only dashboard (not in `run_all.sql`) |
 
 ## Schema changes (for Nana's team)
 
@@ -88,6 +90,21 @@ Everything below is added by the scripts; nothing in the original data is rewrit
 | Indexes `order_items_order_idx`, `order_items_product_idx`, `orders_customer_date_idx`, `inventory_log_product_date_idx` | 07 | Measured gains (see the measurement report) |
 | Function `refuse_log_change()` and 2 triggers on `inventory_log` | 08 | The stock trail can be added to, not rewritten |
 | 2 columns on `stock_settings`; views `stock_health`, `stock_health_alerts`, `stock_count_first`, `stock_health_summary` | 09 | The improvement |
+
+## Optional: dashboard for non-technical readers
+
+A small read-only web page that shows the same figures as charts and tables, for Nana and Adwoa: sales per month, the top 100 (names hidden unless switched on), one customer's months and running total, low stock by category with drill-down, stock health and the 20 products to count first, and the data problems counted live.
+
+```
+pip install -r dashboard/requirements.txt
+$env:DATABASE_URL="postgresql://postgres:kloudkart@localhost:5432/lab"
+streamlit run dashboard/app.py
+```
+Then open the address it prints (usually http://localhost:8501).
+
+- **Optional.** It is not part of the graded SQL solution, and `reset.ps1` doesn't run it. Everything it shows comes from the views the SQL already builds, so the figures are the same as in the reports.
+- **Read-only.** It connects with `default_transaction_read_only=on`, so the database refuses any change made through it.
+- **No new server or bill.** It runs on the laptop that opens it; a reviewer who doesn't install it loses nothing.
 
 ## Settings and routine jobs
 
